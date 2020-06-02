@@ -29,9 +29,8 @@ def init_conf():
 
 
 class Conf:
-    CLIENT_NO = 100
-    TABLE_COLUMNS = ["time between arrivals", "arrival time", "corona +", "service begin", "service time",
-                     "service end", "time in queue"]
+    CLIENT_NO = 1000000
+    TABLE_COLUMNS = ["t btw arrival", "arrival t", "corona +", "srv beg", "srv t", "srv end", "t in Q"]
 
     M, LAMBDA, ALPHA, MU, DOCTORS = init_conf()
     M = int(M)

@@ -4,11 +4,11 @@ from conf import Conf
 
 
 def btw_arrival():
-    return 1  # fixme poisson with mean Conf.LAMBDA and size of Conf.CLIENT_NO
+    return np.random.uniform(1, 10, Conf.CLIENT_NO)  # fixme poisson with mean Conf.LAMBDA and size of Conf.CLIENT_NO
 
 
 def service_time():
-    return 1  # fixme poisson with mean Conf.MU and size of Conf.CLIENT_NO
+    return np.random.uniform(1, 10, Conf.CLIENT_NO)  # fixme poisson with mean Conf.MU and size of Conf.CLIENT_NO
 
 
 def corona():
