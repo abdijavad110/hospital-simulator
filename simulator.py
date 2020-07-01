@@ -34,38 +34,49 @@ if __name__ == '__main__':
     now = 0
     corona_idx = 0
     normal_idx = 0
+########################################################################### ina rp ezafe kardam UP
+    # tuye "for" ham un jahayi k loc dashti ro avaz kardam ke ba numpy sazgar beshe
+
+    np_corona_table=corona_table.to_numpy()
+    np_normal_table=normal_table.to_numpy()
+    corona_as_t_idx= [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t']]
+    corona_set_idx= [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
+    normal_set_idx= [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
+    normal_as_t_idx= [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t']]
+###########################################################################  ezafe kardam Down
+
     for _ in range(Conf.CLIENT_NO):
-        corona_arrival, corona_srv_t = corona_table.loc[corona_idx, ['arrival t', 'srv t']]
-        normal_arrival, normal_srv_t = normal_table.loc[normal_idx, ['arrival t', 'srv t']]
+        corona_arrival, corona_srv_t = np_corona_table[corona_idx, corona_as_t_idx]
+        normal_arrival, normal_srv_t = np_corona_table[normal_idx, normal_as_t_idx]
         if corona_arrival <= now or corona_arrival <= normal_arrival:
             begin = now if corona_arrival < now else corona_arrival
             now = end = corona_srv_t + begin
             Q_t = begin - corona_arrival
-            corona_table.loc[corona_idx, ['srv beg', 'srv end', 'Q t']] = begin, end, Q_t
+            np_corona_table[corona_idx, corona_set_idx] = begin, end, Q_t
             corona_idx += 1
             if corona_idx == len(corona_table):
                 for i in range(normal_idx, len(normal_table)):
-                    arrival, srv_t = normal_table.loc[i, ['arrival t', 'srv t']]
+                    arrival, srv_t = np_normal_table[i, normal_as_t_idx]
                     begin = now if arrival < now else arrival
                     now = end = srv_t + begin
                     Q_t = begin - arrival
-                    normal_table.loc[i, ['srv beg', 'srv end', 'Q t']] = begin, end, Q_t
+                    np_normal_table[i, normal_set_idx] = begin, end, Q_t
                 break
         else:
             begin = now if normal_arrival < now else normal_arrival
             now = end = normal_srv_t + begin
             Q_t = begin - normal_arrival
-            normal_table.loc[normal_idx, ['srv beg', 'srv end', 'Q t']] = begin, end, Q_t
+            np_normal_table[normal_idx,normal_set_idx] = begin, end, Q_t
             normal_idx += 1
             if normal_idx == len(normal_table):
                 for i in range(corona_idx, len(corona_table)):
-                    arrival, srv_t = corona_table.loc[i, ['arrival t', 'srv t']]
+                    arrival, srv_t = np_corona_table[i, corona_as_t_idx]
                     begin = now if arrival < now else arrival
                     now = end = srv_t + begin
                     Q_t = begin - arrival
-                    corona_table.loc[i, ['srv beg', 'srv end', 'Q t']] = begin, end, Q_t
+                    np_corona_table[i, corona_set_idx] = begin, end, Q_t
                 break
 
     print(len(corona_table), len(normal_table))
-    print(corona_table.tail())
-    print(normal_table.tail())
+    print(np_corona_table[-5:])
+    print(np_normal_table[-5:])

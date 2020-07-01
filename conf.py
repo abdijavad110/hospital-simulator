@@ -5,6 +5,7 @@ def get_conf_terminal():
     first_line = input()
     lines = first_line + '\n'
     big_m = int(float(first_line.replace(' ', '').split(',')[0]))
+    print(big_m)
     for m in range(big_m):
         lines += input() + '\n'
     return lines
@@ -29,7 +30,7 @@ def init_conf():
 
 
 class Conf:
-    CLIENT_NO = 10000
+    CLIENT_NO = 1000000
     TABLE_COLUMNS = ["t btw arrival", "arrival t", "corona +", "srv beg", "srv t", "srv end", "Q t"]
 
     M, LAMBDA, ALPHA, MU, DOCTORS = init_conf()
