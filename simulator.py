@@ -35,6 +35,8 @@ if __name__ == '__main__':
     now = 0
     corona_idx = 0
     normal_idx = 0
+    corona_len = len(corona_table)
+    normal_len = len(normal_table)
 
     np_corona_table = corona_table.to_numpy()
     np_normal_table = normal_table.to_numpy()
@@ -46,42 +48,35 @@ if __name__ == '__main__':
     corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
     for _ in range(Conf.CLIENT_NO):
-        if corona_arrival <= now or corona_arrival <= normal_arrival:
+        if corona_idx != corona_len and (
+                corona_arrival <= now or corona_arrival <= normal_arrival or normal_idx == normal_len):
             begin = now if corona_arrival < now else corona_arrival
-            now = end = corona_srv_t + begin
             c_Q_t -= (begin - corona_arrival)
-            np_corona_table[corona_idx, corona_set_idx] = begin, end, c_Q_t
+            if c_Q_t >= 0:
+                now = end = corona_srv_t + begin
+                np_corona_table[corona_idx, corona_set_idx] = begin, end, c_Q_t
+            else:
+                np_corona_table[corona_idx, 6] = "gone"
             corona_idx += 1
-            if corona_idx == len(corona_table):
-                for i in range(normal_idx, len(normal_table)):
-                    arrival, srv_t, Q_t = np_normal_table[i, normal_as_t_idx]
-                    begin = now if arrival < now else arrival
-                    now = end = srv_t + begin
-                    Q_t -= (begin - arrival)
-                    np_normal_table[i, normal_set_idx] = begin, end, Q_t
-                break
-            corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
+            if corona_idx != corona_len:
+                corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
         else:
             begin = now if normal_arrival < now else normal_arrival
-            now = end = normal_srv_t + begin
             n_Q_t -= (begin - normal_arrival)
-            np_normal_table[normal_idx, normal_set_idx] = begin, end, n_Q_t
+            if n_Q_t >= 0:
+                now = end = normal_srv_t + begin
+                np_normal_table[normal_idx, normal_set_idx] = begin, end, n_Q_t
+            else:
+                np_normal_table[normal_idx, 6] = "gone"
             normal_idx += 1
-            if normal_idx == len(normal_table):
-                for i in range(corona_idx, len(corona_table)):
-                    arrival, srv_t, Q_t = np_corona_table[i, corona_as_t_idx]
-                    begin = now if arrival < now else arrival
-                    now = end = srv_t + begin
-                    Q_t -= (begin - arrival)
-                    np_corona_table[i, corona_set_idx] = begin, end, Q_t
-                break
-            normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
+            if normal_idx != normal_len:
+                normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
 
         # doctor check kone alan bimar(a) doctor_service_finish < now -> take new bimar(b) az saf
 
         # append new bimar to that saf
 
-    print(len(corona_table), len(normal_table))
+    print(corona_len, normal_len)
     print(pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS), "\n")
     print(pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS))
     # print(np_corona_table[-5:])
