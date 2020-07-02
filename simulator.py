@@ -34,20 +34,18 @@ if __name__ == '__main__':
     now = 0
     corona_idx = 0
     normal_idx = 0
-########################################################################### ina rp ezafe kardam UP
-    # tuye "for" ham un jahayi k loc dashti ro avaz kardam ke ba numpy sazgar beshe
 
-    np_corona_table=corona_table.to_numpy()
-    np_normal_table=normal_table.to_numpy()
-    corona_as_t_idx= [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t']]
-    corona_set_idx= [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
-    normal_set_idx= [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
-    normal_as_t_idx= [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t']]
-###########################################################################  ezafe kardam Down
+    np_corona_table = corona_table.to_numpy()
+    np_normal_table = normal_table.to_numpy()
+    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t']]
+    corona_set_idx = [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
+    normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
+    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t']]
+    # 10 seconds until reaching this point fo 10M clients
 
+    corona_arrival, corona_srv_t = np_corona_table[corona_idx, corona_as_t_idx]
+    normal_arrival, normal_srv_t = np_normal_table[normal_idx, normal_as_t_idx]
     for _ in range(Conf.CLIENT_NO):
-        corona_arrival, corona_srv_t = np_corona_table[corona_idx, corona_as_t_idx]
-        normal_arrival, normal_srv_t = np_corona_table[normal_idx, normal_as_t_idx]
         if corona_arrival <= now or corona_arrival <= normal_arrival:
             begin = now if corona_arrival < now else corona_arrival
             now = end = corona_srv_t + begin
@@ -62,11 +60,12 @@ if __name__ == '__main__':
                     Q_t = begin - arrival
                     np_normal_table[i, normal_set_idx] = begin, end, Q_t
                 break
+            corona_arrival, corona_srv_t = np_corona_table[corona_idx, corona_as_t_idx]
         else:
             begin = now if normal_arrival < now else normal_arrival
             now = end = normal_srv_t + begin
             Q_t = begin - normal_arrival
-            np_normal_table[normal_idx,normal_set_idx] = begin, end, Q_t
+            np_normal_table[normal_idx, normal_set_idx] = begin, end, Q_t
             normal_idx += 1
             if normal_idx == len(normal_table):
                 for i in range(corona_idx, len(corona_table)):
@@ -76,7 +75,10 @@ if __name__ == '__main__':
                     Q_t = begin - arrival
                     np_corona_table[i, corona_set_idx] = begin, end, Q_t
                 break
+            normal_arrival, normal_srv_t = np_normal_table[normal_idx, normal_as_t_idx]
 
     print(len(corona_table), len(normal_table))
-    print(np_corona_table[-5:])
-    print(np_normal_table[-5:])
+    print(pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS), "\n")
+    print(pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS))
+    # print(np_corona_table[-5:])
+    # print(np_normal_table[-5:])
