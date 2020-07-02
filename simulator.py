@@ -50,6 +50,8 @@ if __name__ == '__main__':
     for _ in range(Conf.CLIENT_NO):
         if corona_idx != corona_len and (
                 corona_arrival <= now or corona_arrival <= normal_arrival or normal_idx == normal_len):
+            p_index = corona_idx
+            p_has_corona = True
             begin = now if corona_arrival < now else corona_arrival
             c_Q_t -= (begin - corona_arrival)
             if c_Q_t >= 0:
@@ -61,6 +63,8 @@ if __name__ == '__main__':
             if corona_idx != corona_len:
                 corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
         else:
+            p_index = normal_idx
+            p_has_corona = False
             begin = now if normal_arrival < now else normal_arrival
             n_Q_t -= (begin - normal_arrival)
             if n_Q_t >= 0:
