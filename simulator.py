@@ -65,74 +65,80 @@ def flush_patients(visit_queues, room_queues_length,
     min_room_length = math.inf
     min_room_length_idx = 0
     for room_idx in range(len(Conf.DOCTORS)):
-        for doc_idx in range(len(Conf.DOCTORS[room_idx])):
+        while True:
+            min_visit_end = 1e20
+            min_doctor_idx = 0
 
-            while True:
-                last_visit_end = None
+            for doc_idx in range(len(Conf.DOCTORS[room_idx])):
+                last_visit_end = -1e20
                 if visiting_patients[room_idx][doc_idx] is not None:
                     last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit end")]
-                    if arrive_time:
-                        if last_visit_end <= arrive_time:
-                            room_queues_length[room_idx] -= 1
-                            visiting_patients[room_idx][doc_idx] = None
-                        else:
-                            break
-                    else:
-                        room_queues_length[room_idx] -= 1
-                        visiting_patients[room_idx][doc_idx] = None
-
-                corona_queue = visit_queues[room_idx][0]
-                normal_queue = visit_queues[room_idx][1]
-
-                pop_tired_patients(corona_queue, normal_queue,last_visit_end)
-
-                if len(corona_queue) > 0 and len(normal_queue) > 0:
-                    if last_visit_end:
-
-                        if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
-                            visiting_patients[room_idx][doc_idx] = corona_queue[0]
-                            corona_queue.popleft()
-                        elif corona_queue[0][get_col_idx('srv end')] <= last_visit_end:
-                            visiting_patients[room_idx][doc_idx] = corona_queue[0]
-                            corona_queue.popleft()
-                        else:
-                            visiting_patients[room_idx][doc_idx] = normal_queue[0]
-                            normal_queue.popleft()
-
-                    else:
-                        if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
-                            visiting_patients[room_idx][doc_idx] = corona_queue[0]
-                            corona_queue.popleft()
-
-                        else:
-                            visiting_patients[room_idx][doc_idx] = normal_queue[0]
-                            normal_queue.popleft()
-                elif len(corona_queue) > 0 and len(normal_queue) == 0:
-
-                    visiting_patients[room_idx][doc_idx] = corona_queue[0]
-                    corona_queue.popleft()
-
-                elif len(corona_queue) == 0 and len(normal_queue) > 0:
-
-                    visiting_patients[room_idx][doc_idx] = normal_queue[0]
-                    normal_queue.popleft()
+                if arrive_time:
+                    if last_visit_end <= arrive_time:
+                        if last_visit_end<min_visit_end:
+                            min_visit_end=last_visit_end
+                            min_doctor_idx=doc_idx
                 else:
-                    break
+                    if last_visit_end < min_visit_end:
+                        min_visit_end = last_visit_end
+                        min_doctor_idx = doc_idx
+            if arrive_time and min_visit_end==1e20:
+                break
+            if min_visit_end==-1e20:min_visit_end=None
 
-                visiting_srv_end = visiting_patients[room_idx][doc_idx][get_col_idx('srv end')]
-                if last_visit_end and last_visit_end > visiting_srv_end:
-                    visit_start = last_visit_end
+            room_queues_length[room_idx] -= 1
+            visiting_patients[room_idx][min_doctor_idx] = None
+
+            corona_queue = visit_queues[room_idx][0]
+            normal_queue = visit_queues[room_idx][1]
+
+            pop_tired_patients(corona_queue, normal_queue,min_visit_end)
+
+            if len(corona_queue) > 0 and len(normal_queue) > 0:
+                if min_visit_end:
+                    if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
+                        visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
+                        corona_queue.popleft()
+                    elif corona_queue[0][get_col_idx('srv end')] <= min_visit_end:
+                        visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
+                        corona_queue.popleft()
+                    else:
+                        visiting_patients[room_idx][min_doctor_idx] = normal_queue[0]
+                        normal_queue.popleft()
                 else:
-                    visit_start = visiting_srv_end
+                    if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
+                        visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
+                        corona_queue.popleft()
 
-                visiting_patients[room_idx][doc_idx][get_col_idx('visit beg')] = visit_start
-                visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][doc_idx])
-                visiting_patients[room_idx][doc_idx][get_col_idx('visit t')] = visit_time
-                visiting_patients[room_idx][doc_idx][get_col_idx('visit end')] = visit_start + visit_time
+                    else:
+                        visiting_patients[room_idx][min_doctor_idx] = normal_queue[0]
+                        normal_queue.popleft()
+            elif len(corona_queue) > 0 and len(normal_queue) == 0:
 
-            if min_room_length > room_queues_length[room_idx]:
-                min_room_length = room_queues_length[room_idx]
-                min_room_length_idx = room_idx
+                visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
+                corona_queue.popleft()
+
+            elif len(corona_queue) == 0 and len(normal_queue) > 0:
+
+                visiting_patients[room_idx][min_doctor_idx] = normal_queue[0]
+                normal_queue.popleft()
+            else:
+                break
+
+            visiting_srv_end = visiting_patients[room_idx][min_doctor_idx][get_col_idx('srv end')]
+            if min_visit_end and min_visit_end > visiting_srv_end:
+                visit_start = min_visit_end
+            else:
+                visit_start = visiting_srv_end
+
+            visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit beg')] = visit_start
+            visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][min_doctor_idx])
+            visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit t')] = visit_time
+            visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit end')] = visit_start + visit_time
+
+        if min_room_length > room_queues_length[room_idx]:
+            min_room_length = room_queues_length[room_idx]
+            min_room_length_idx = room_idx
 
     return min_room_length_idx
 
@@ -223,8 +229,11 @@ if __name__ == '__main__':
 
     flush_patients(visit_queues, room_queues_length,
                    visiting_patients)
+
     print(corona_len, normal_len)
     print(pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS), "\n")
     print(pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS))
+    # df=pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
+    # print(df.loc[df['Q t'] == "gone"])
     # print(np_corona_table[-5:])
     # print(np_normal_table[-5:])
