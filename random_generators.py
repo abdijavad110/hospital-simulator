@@ -15,7 +15,7 @@ def visit_time(landa):
 
 
 def queue_time():
-    return np.random.uniform(1, 10, Conf.CLIENT_NO)  # fixme what the fuck it should be
+    return np.random.uniform(1, 5, Conf.CLIENT_NO)  # fixme what the fuck it should be
 
 
 def corona():

@@ -31,8 +31,37 @@ def get_col_idx(name):
     return Conf.TABLE_COLUMNS.index(name)
 
 
-def check_free_doctor(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
-                      arrive_time, visiting_patients):
+def check_patient_is_tired(patient, last_visit_end=None):
+    visiting_srv_end = patient[get_col_idx('srv end')]
+    if last_visit_end and last_visit_end > visiting_srv_end:
+        visit_start = last_visit_end
+    else:
+        visit_start = visiting_srv_end
+
+    delay = visit_start - visiting_srv_end
+    patient[get_col_idx('Q t')] -= delay
+
+    if patient[get_col_idx('Q t')] < 0:
+        patient[get_col_idx('Q t')] = "gone"
+        return True
+    return False
+
+
+def pop_tired_patients(corona_queue, normal_queue, last_visit_end):
+    go = True
+    while go:
+        go = False
+
+        if len(corona_queue) > 0 and check_patient_is_tired(corona_queue[0], last_visit_end):
+            corona_queue.popleft()
+            go = True
+        if len(normal_queue) > 0 and check_patient_is_tired(normal_queue[0], last_visit_end):
+            normal_queue.popleft()
+            go = True
+
+
+def flush_patients(visit_queues, room_queues_length,
+                   visiting_patients, arrive_time=None):
     min_room_length = math.inf
     min_room_length_idx = 0
     for room_idx in range(len(Conf.DOCTORS)):
@@ -42,17 +71,24 @@ def check_free_doctor(np_normal_table, np_corona_table, p_index, p_has_corona, v
                 last_visit_end = None
                 if visiting_patients[room_idx][doc_idx] is not None:
                     last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit end")]
-                    if last_visit_end <= arrive_time:
+                    if arrive_time:
+                        if last_visit_end <= arrive_time:
+                            room_queues_length[room_idx] -= 1
+                            visiting_patients[room_idx][doc_idx] = None
+                        else:
+                            break
+                    else:
                         room_queues_length[room_idx] -= 1
                         visiting_patients[room_idx][doc_idx] = None
-                    else:
-                        break
 
                 corona_queue = visit_queues[room_idx][0]
                 normal_queue = visit_queues[room_idx][1]
 
+                pop_tired_patients(corona_queue, normal_queue,last_visit_end)
+
                 if len(corona_queue) > 0 and len(normal_queue) > 0:
                     if last_visit_end:
+
                         if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
                             visiting_patients[room_idx][doc_idx] = corona_queue[0]
                             corona_queue.popleft()
@@ -72,8 +108,12 @@ def check_free_doctor(np_normal_table, np_corona_table, p_index, p_has_corona, v
                             visiting_patients[room_idx][doc_idx] = normal_queue[0]
                             normal_queue.popleft()
                 elif len(corona_queue) > 0 and len(normal_queue) == 0:
+
                     visiting_patients[room_idx][doc_idx] = corona_queue[0]
+                    corona_queue.popleft()
+
                 elif len(corona_queue) == 0 and len(normal_queue) > 0:
+
                     visiting_patients[room_idx][doc_idx] = normal_queue[0]
                     normal_queue.popleft()
                 else:
@@ -81,9 +121,9 @@ def check_free_doctor(np_normal_table, np_corona_table, p_index, p_has_corona, v
 
                 visiting_srv_end = visiting_patients[room_idx][doc_idx][get_col_idx('srv end')]
                 if last_visit_end and last_visit_end > visiting_srv_end:
-                    visit_start=last_visit_end
+                    visit_start = last_visit_end
                 else:
-                    visit_start=visiting_srv_end
+                    visit_start = visiting_srv_end
 
                 visiting_patients[room_idx][doc_idx][get_col_idx('visit beg')] = visit_start
                 visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][doc_idx])
@@ -94,6 +134,14 @@ def check_free_doctor(np_normal_table, np_corona_table, p_index, p_has_corona, v
                 min_room_length = room_queues_length[room_idx]
                 min_room_length_idx = room_idx
 
+    return min_room_length_idx
+
+
+def add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
+                      arrive_time, visiting_patients):
+    min_room_length_idx = flush_patients(visit_queues,
+                                         room_queues_length,
+                                         visiting_patients, arrive_time)
     if p_has_corona:
         p = np_corona_table[p_index]
         visit_queues[min_room_length_idx][0].append(p)
@@ -136,6 +184,7 @@ if __name__ == '__main__':
     corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
     for _ in range(Conf.CLIENT_NO):
+        gone = False
         if corona_idx != corona_len and (
                 corona_arrival <= now or corona_arrival <= normal_arrival or normal_idx == normal_len):
             p_index = corona_idx
@@ -146,9 +195,9 @@ if __name__ == '__main__':
                 now = end = corona_srv_t + begin
                 np_corona_table[corona_idx, corona_set_idx] = begin, end, c_Q_t
             else:
-                now = end = corona_srv_t + begin
-                np_corona_table[corona_idx, corona_set_idx] = begin, end, c_Q_t
-                # np_corona_table[corona_idx, 6] = "gone"
+                np_corona_table[corona_idx, 6] = "gone"
+                gone = True
+
             corona_idx += 1
             if corona_idx != corona_len:
                 corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
@@ -161,18 +210,19 @@ if __name__ == '__main__':
                 now = end = normal_srv_t + begin
                 np_normal_table[normal_idx, normal_set_idx] = begin, end, n_Q_t
             else:
-                now = end = normal_srv_t + begin
-                np_normal_table[normal_idx, normal_set_idx] = begin, end, n_Q_t
-                # np_normal_table[normal_idx, 6] = "gone"
+                np_normal_table[normal_idx, 6] = "gone"
+                gone = True
             normal_idx += 1
             if normal_idx != normal_len:
                 normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
 
         # doctor check kone alan bimar(a) doctor_service_finish < now -> take new bimar(b) az saf
-        check_free_doctor(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
-                          now, visiting_patients)
-        # append new bimar to that saf
+        if gone is False:
+            add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
+                              now, visiting_patients)
 
+    flush_patients(visit_queues, room_queues_length,
+                   visiting_patients)
     print(corona_len, normal_len)
     print(pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS), "\n")
     print(pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS))
