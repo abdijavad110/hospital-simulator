@@ -18,7 +18,9 @@ def raw_table():
     table.loc[:, 'srv beg'] = 0
     table.loc[1, 'arrival t'] = 0
     btw_arrival = rgs.btw_arrival()
-    table.loc[:, 'Q t'] = rgs.queue_time()
+    patience = rgs.queue_time()
+    table.loc[:, 'remaining P'] = patience
+    table.loc[:, 'init patience'] = patience
     table.loc[:, 'corona +'] = rgs.corona()
     table.loc[:, 'srv t'] = rgs.service_time()
     btw_arrival[0] = 0
@@ -39,10 +41,10 @@ def check_patient_is_tired(patient, last_visit_end=None):
         visit_start = visiting_srv_end
 
     delay = visit_start - visiting_srv_end
-    patient[get_col_idx('Q t')] -= delay
+    patient[get_col_idx('remaining P')] -= delay
 
-    if patient[get_col_idx('Q t')] < 0:
-        patient[get_col_idx('Q t')] = "gone"
+    if patient[get_col_idx('remaining P')] < 0:
+        patient[get_col_idx('remaining P')] = "gone"
         return True
     return False
 
@@ -75,16 +77,17 @@ def flush_patients(visit_queues, room_queues_length,
                     last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit end")]
                 if arrive_time:
                     if last_visit_end <= arrive_time:
-                        if last_visit_end<min_visit_end:
-                            min_visit_end=last_visit_end
-                            min_doctor_idx=doc_idx
+                        if last_visit_end < min_visit_end:
+                            min_visit_end = last_visit_end
+                            min_doctor_idx = doc_idx
                 else:
                     if last_visit_end < min_visit_end:
                         min_visit_end = last_visit_end
                         min_doctor_idx = doc_idx
-            if arrive_time and min_visit_end==1e20:
+            if arrive_time and min_visit_end == 1e20:
                 break
-            if min_visit_end==-1e20:min_visit_end=None
+            if min_visit_end == -1e20:
+                min_visit_end = None
 
             room_queues_length[room_idx] -= 1
             visiting_patients[room_idx][min_doctor_idx] = None
@@ -92,7 +95,7 @@ def flush_patients(visit_queues, room_queues_length,
             corona_queue = visit_queues[room_idx][0]
             normal_queue = visit_queues[room_idx][1]
 
-            pop_tired_patients(corona_queue, normal_queue,min_visit_end)
+            pop_tired_patients(corona_queue, normal_queue, min_visit_end)
 
             if len(corona_queue) > 0 and len(normal_queue) > 0:
                 if min_visit_end:
@@ -132,6 +135,8 @@ def flush_patients(visit_queues, room_queues_length,
                 visit_start = visiting_srv_end
 
             visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit beg')] = visit_start
+            visiting_patients[room_idx][min_doctor_idx][get_col_idx('room')] = room_idx
+            visiting_patients[room_idx][min_doctor_idx][get_col_idx('doctor')] = min_doctor_idx
             visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][min_doctor_idx])
             visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit t')] = visit_time
             visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit end')] = visit_start + visit_time
@@ -182,10 +187,10 @@ if __name__ == '__main__':
 
     np_corona_table = corona_table.to_numpy()
     np_normal_table = normal_table.to_numpy()
-    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'Q t']]
-    corona_set_idx = [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
-    normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'Q t']]
-    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'Q t']]
+    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining P']]
+    corona_set_idx = [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining P']]
+    normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining P']]
+    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining P']]
 
     corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
@@ -230,10 +235,9 @@ if __name__ == '__main__':
     flush_patients(visit_queues, room_queues_length,
                    visiting_patients)
 
-    print(corona_len, normal_len)
-    print(pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS), "\n")
-    print(pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS))
-    # df=pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
-    # print(df.loc[df['Q t'] == "gone"])
-    # print(np_corona_table[-5:])
-    # print(np_normal_table[-5:])
+    corona_table = pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS)
+    normal_table = pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
+    complete_table = normal_table.append(corona_table, ignore_index=True)
+    complete_table = complete_table.sort_values(by=['arrival t'])
+
+    # print(complete_table)
