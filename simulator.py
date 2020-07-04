@@ -34,17 +34,20 @@ def get_col_idx(name):
 
 
 def check_patient_is_tired(patient, last_visit_end=None):
-    visiting_srv_end = patient[get_col_idx('srv end')]
+    # visiting_srv_end = patient[get_col_idx('srv end')]
+    visiting_srv_end = patient[5]
     if last_visit_end and last_visit_end > visiting_srv_end:
         visit_start = last_visit_end
     else:
         visit_start = visiting_srv_end
 
     delay = visit_start - visiting_srv_end
-    patient[get_col_idx('remaining P')] -= delay
+    # patient[get_col_idx('remaining P')] -= delay
+    patient[6] -= delay
 
-    if patient[get_col_idx('remaining P')] < 0:
-        patient[get_col_idx('remaining P')] = "gone"
+    # if patient[get_col_idx('remaining P')] < 0:
+    if patient[6] < 0:
+        patient[6] = "gone"
         return True
     return False
 
@@ -74,7 +77,8 @@ def flush_patients(visit_queues, room_queues_length,
             for doc_idx in range(len(Conf.DOCTORS[room_idx])):
                 last_visit_end = -1e20
                 if visiting_patients[room_idx][doc_idx] is not None:
-                    last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit end")]
+                    # last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit end")]
+                    last_visit_end = visiting_patients[room_idx][doc_idx][9]
                 if arrive_time:
                     if last_visit_end <= arrive_time:
                         if last_visit_end < min_visit_end:
@@ -99,17 +103,20 @@ def flush_patients(visit_queues, room_queues_length,
 
             if len(corona_queue) > 0 and len(normal_queue) > 0:
                 if min_visit_end:
-                    if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
+                    # if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
+                    if corona_queue[0][5] <= normal_queue[0][5]:
                         visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
                         corona_queue.popleft()
-                    elif corona_queue[0][get_col_idx('srv end')] <= min_visit_end:
+                    # elif corona_queue[0][get_col_idx('srv end')] <= min_visit_end:
+                    elif corona_queue[0][5] <= min_visit_end:
                         visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
                         corona_queue.popleft()
                     else:
                         visiting_patients[room_idx][min_doctor_idx] = normal_queue[0]
                         normal_queue.popleft()
                 else:
-                    if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
+                    # if corona_queue[0][get_col_idx('srv end')] <= normal_queue[0][get_col_idx('srv end')]:
+                    if corona_queue[0][5] <= normal_queue[0][5]:
                         visiting_patients[room_idx][min_doctor_idx] = corona_queue[0]
                         corona_queue.popleft()
 
@@ -128,18 +135,25 @@ def flush_patients(visit_queues, room_queues_length,
             else:
                 break
 
-            visiting_srv_end = visiting_patients[room_idx][min_doctor_idx][get_col_idx('srv end')]
+            # visiting_srv_end = visiting_patients[room_idx][min_doctor_idx][get_col_idx('srv end')]
+            visiting_srv_end = visiting_patients[room_idx][min_doctor_idx][5]
             if min_visit_end and min_visit_end > visiting_srv_end:
                 visit_start = min_visit_end
             else:
                 visit_start = visiting_srv_end
 
-            visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit beg')] = visit_start
-            visiting_patients[room_idx][min_doctor_idx][get_col_idx('room')] = room_idx
-            visiting_patients[room_idx][min_doctor_idx][get_col_idx('doctor')] = min_doctor_idx
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit beg')] = visit_start
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('room')] = room_idx
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('doctor')] = min_doctor_idx
+            # visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][min_doctor_idx])
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit t')] = visit_time
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit end')] = visit_start + visit_time
+            visiting_patients[room_idx][min_doctor_idx][7] = visit_start
+            visiting_patients[room_idx][min_doctor_idx][10] = room_idx
+            visiting_patients[room_idx][min_doctor_idx][11] = min_doctor_idx
             visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][min_doctor_idx])
-            visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit t')] = visit_time
-            visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit end')] = visit_start + visit_time
+            visiting_patients[room_idx][min_doctor_idx][8] = visit_time
+            visiting_patients[room_idx][min_doctor_idx][9] = visit_start + visit_time
 
         if min_room_length > room_queues_length[room_idx]:
             min_room_length = room_queues_length[room_idx]
@@ -179,6 +193,9 @@ if __name__ == '__main__':
     visit_queues = [[deque(), deque()] for i in range(len(Conf.DOCTORS))]
     room_queues_length = [0 for i in range(len(Conf.DOCTORS))]
 
+    del raw_table
+    j_max = Conf.CLIENT_NO // 100
+
     now = 0
     corona_idx = 0
     normal_idx = 0
@@ -192,45 +209,50 @@ if __name__ == '__main__':
     normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining P']]
     normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining P']]
 
+    del corona_table
+    del normal_table
+
     corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
-    for _ in range(Conf.CLIENT_NO):
-        gone = False
-        if corona_idx != corona_len and (
-                corona_arrival <= now or corona_arrival <= normal_arrival or normal_idx == normal_len):
-            p_index = corona_idx
-            p_has_corona = True
-            begin = now if corona_arrival < now else corona_arrival
-            c_Q_t -= (begin - corona_arrival)
-            if c_Q_t >= 0:
-                now = end = corona_srv_t + begin
-                np_corona_table[corona_idx, corona_set_idx] = begin, end, c_Q_t
-            else:
-                np_corona_table[corona_idx, 6] = "gone"
-                gone = True
+    for i in range(100):
+        print("#" * i + "-" * (99 - i), end="\r")
+        for j in range(j_max):
+            gone = False
+            if corona_idx != corona_len and (
+                    corona_arrival <= now or corona_arrival <= normal_arrival or normal_idx == normal_len):
+                p_index = corona_idx
+                p_has_corona = True
+                begin = now if corona_arrival < now else corona_arrival
+                c_Q_t -= (begin - corona_arrival)
+                if c_Q_t >= 0:
+                    now = end = corona_srv_t + begin
+                    np_corona_table[corona_idx, corona_set_idx] = begin, end, c_Q_t
+                else:
+                    np_corona_table[corona_idx, 6] = "gone"
+                    gone = True
 
-            corona_idx += 1
-            if corona_idx != corona_len:
-                corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
-        else:
-            p_index = normal_idx
-            p_has_corona = False
-            begin = now if normal_arrival < now else normal_arrival
-            n_Q_t -= (begin - normal_arrival)
-            if n_Q_t >= 0:
-                now = end = normal_srv_t + begin
-                np_normal_table[normal_idx, normal_set_idx] = begin, end, n_Q_t
+                corona_idx += 1
+                if corona_idx != corona_len:
+                    corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
             else:
-                np_normal_table[normal_idx, 6] = "gone"
-                gone = True
-            normal_idx += 1
-            if normal_idx != normal_len:
-                normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
+                p_index = normal_idx
+                p_has_corona = False
+                begin = now if normal_arrival < now else normal_arrival
+                n_Q_t -= (begin - normal_arrival)
+                if n_Q_t >= 0:
+                    now = end = normal_srv_t + begin
+                    np_normal_table[normal_idx, normal_set_idx] = begin, end, n_Q_t
+                else:
+                    np_normal_table[normal_idx, 6] = "gone"
+                    gone = True
+                normal_idx += 1
+                if normal_idx != normal_len:
+                    normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
 
-        # doctor check kone alan bimar(a) doctor_service_finish < now -> take new bimar(b) az saf
-        if gone is False:
-            add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
-                              now, visiting_patients)
+            # doctor check kone alan bimar(a) doctor_service_finish < now -> take new bimar(b) az saf
+            if gone is False:
+                add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
+                                  now, visiting_patients)
 
     flush_patients(visit_queues, room_queues_length,
                    visiting_patients)
@@ -238,6 +260,7 @@ if __name__ == '__main__':
     corona_table = pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS)
     normal_table = pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
     complete_table = normal_table.append(corona_table, ignore_index=True)
+    del normal_table, corona_table
     complete_table = complete_table.sort_values(by=['arrival t'])
 
     # print(complete_table)
