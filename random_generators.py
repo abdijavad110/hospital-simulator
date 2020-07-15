@@ -4,19 +4,19 @@ from conf import Conf
 
 
 def btw_arrival():
-    return np.random.uniform(1, 10, Conf.CLIENT_NO)  # fixme poisson with mean Conf.LAMBDA and size of Conf.CLIENT_NO
+    return np.random.exponential(scale=1/Conf.LAMBDA, size=Conf.CLIENT_NO)
 
 
 def service_time():
-    return np.random.uniform(1, 10, Conf.CLIENT_NO)  # fixme poisson with mean Conf.MU and size of Conf.CLIENT_NO
+    return np.random.exponential(scale=1/Conf.MU, size=Conf.CLIENT_NO)
 
 
-def visit_time(landa):
-    return np.random.uniform(1, 20, 1)[0]
+def visit_time(mean_visit_time):
+    return np.random.exponential(scale=mean_visit_time, size=Conf.CLIENT_NO)    # fixme Number of random numbers that should be returned
 
 
 def queue_time():
-    return np.random.uniform(1, 5, Conf.CLIENT_NO)  # fixme what the fuck it should be
+    return np.random.uniform(1, 5, Conf.CLIENT_NO)  # fixme should it be 20?
 
 
 def corona():
