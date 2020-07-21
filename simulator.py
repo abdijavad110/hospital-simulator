@@ -265,11 +265,11 @@ if __name__ == '__main__':
 
     #getting statistics
     #todo eliminate gone patients
-    mean_corona_plus_insystem_time = (corona_table['visit end'].sum() - corona_table['arrival t'].sum())/len(corona_table['arrival t'])
-    mean_corona_minus_insystem_time = (normal_table['visit end'].sum() - normal_table['arrival t'].sum())/len(normal_table['arrival t'])
-
-    mean_corona_plus_inqueue_time = (corona_table['init patience'].sum() - corona_table['remaining P'].sum())/len(corona_table['remaining P'])
-    mean_corona_minus_inqueue_time = (normal_table['init patience'].sum() - normal_table['remaining P'].sum())/len(normal_table['remaining P'])
+    #mean_corona_plus_insystem_time = (corona_table['visit end'].sum() - corona_table[corona_table['visit end'].isna()]['arrival t'].sum())/len(corona_table['visit end'])
+    #mean_corona_minus_insystem_time = (normal_table['visit end'].sum() - normal_table['arrival t'].sum())/len(normal_table['arrival t'])
+    print(len(corona_table[corona_table['visit end'].isna()]['arrival t']))
+    #mean_corona_plus_inqueue_time = (corona_table['init patience'].sum() - corona_table['remaining P'].sum())/len(corona_table['remaining P'])
+    #mean_corona_minus_inqueue_time = (normal_table['init patience'].sum() - normal_table['remaining P'].sum())/len(normal_table['remaining P'])
 
     del normal_table, corona_table
     complete_table = complete_table.sort_values(by=['arrival t'])
@@ -277,10 +277,11 @@ if __name__ == '__main__':
     # getting final statistics
 
     # calc mean in-system time
-    mean_insystem_time = (complete_table['visit end'].sum() - complete_table['arrival t'].sum())/len(complete_table['arrival t'])
-    mean_inqueue_time = (complete_table['init patience'].sum() - complete_table['remaining P'].sum())/len(complete_table['remaining P'])
+    #mean_insystem_time = (complete_table['visit end'].sum() - complete_table['arrival t'].sum())/len(complete_table['arrival t'])
+    #mean_inqueue_time = (complete_table['init patience'].sum() - complete_table['remaining P'].sum())/len(complete_table['remaining P'])
 
     # todo gone_counter =
 
+    print(complete_table)
+    #print(mean_corona_plus_insystem_time)
 
-    # print(complete_table)
