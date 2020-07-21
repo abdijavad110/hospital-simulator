@@ -202,6 +202,9 @@ if __name__ == '__main__':
     corona_len = len(corona_table)
     normal_len = len(normal_table)
 
+    # counter for exhasted patients
+    gone_counter = 0
+
     np_corona_table = corona_table.to_numpy()
     np_normal_table = normal_table.to_numpy()
     corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining P']]
@@ -249,7 +252,6 @@ if __name__ == '__main__':
                 if normal_idx != normal_len:
                     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
 
-            # doctor check kone alan bimar(a) doctor_service_finish < now -> take new bimar(b) az saf
             if gone is False:
                 add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
                                   now, visiting_patients)
@@ -260,7 +262,25 @@ if __name__ == '__main__':
     corona_table = pd.DataFrame(np_corona_table, columns=Conf.TABLE_COLUMNS)
     normal_table = pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
     complete_table = normal_table.append(corona_table, ignore_index=True)
+
+    #getting statistics
+    #todo eliminate gone patients
+    mean_corona_plus_insystem_time = (corona_table['visit end'].sum() - corona_table['arrival t'].sum())/len(corona_table['arrival t'])
+    mean_corona_minus_insystem_time = (normal_table['visit end'].sum() - normal_table['arrival t'].sum())/len(normal_table['arrival t'])
+
+    mean_corona_plus_inqueue_time = (corona_table['init patience'].sum() - corona_table['remaining P'].sum())/len(corona_table['remaining P'])
+    mean_corona_minus_inqueue_time = (normal_table['init patience'].sum() - normal_table['remaining P'].sum())/len(normal_table['remaining P'])
+
     del normal_table, corona_table
     complete_table = complete_table.sort_values(by=['arrival t'])
+
+    # getting final statistics
+
+    # calc mean in-system time
+    mean_insystem_time = (complete_table['visit end'].sum() - complete_table['arrival t'].sum())/len(complete_table['arrival t'])
+    mean_inqueue_time = (complete_table['init patience'].sum() - complete_table['remaining P'].sum())/len(complete_table['remaining P'])
+
+    # todo gone_counter =
+
 
     # print(complete_table)
