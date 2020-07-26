@@ -30,9 +30,9 @@ def init_conf():
 
 
 class Conf:
-    CLIENT_NO = 10
-    TABLE_COLUMNS = ["t btw arrival", "arrival t", "corona +", "srv beg", "srv t", "srv end", "remaining P", "visit beg",
-                     "visit t", "visit end", "room", "doctor", "init patience"]
+    CLIENT_NO = 500
+    TABLE_COLUMNS = ["t btw arrival", "arrival t", "corona +", "srv beg", "srv t", "srv end", "remaining_P", "visit beg",
+                     "visit t", "visit end", "room", "doctor", "init_patience"]
 
     M, LAMBDA, ALPHA, MU, DOCTORS = init_conf()
     M = int(M)

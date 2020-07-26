@@ -19,8 +19,8 @@ def raw_table():
     table.loc[1, 'arrival t'] = 0
     btw_arrival = rgs.btw_arrival()
     patience = rgs.queue_time()
-    table.loc[:, 'remaining P'] = patience
-    table.loc[:, 'init patience'] = patience
+    table.loc[:, 'remaining_P'] = patience
+    table.loc[:, 'init_patience'] = patience
     table.loc[:, 'corona +'] = rgs.corona()
     table.loc[:, 'srv t'] = rgs.service_time()
     btw_arrival[0] = 0
@@ -42,10 +42,10 @@ def check_patient_is_tired(patient, last_visit_end=None):
         visit_start = visiting_srv_end
 
     delay = visit_start - visiting_srv_end
-    # patient[get_col_idx('remaining P')] -= delay
+    # patient[get_col_idx('remaining_P')] -= delay
     patient[6] -= delay
 
-    # if patient[get_col_idx('remaining P')] < 0:
+    # if patient[get_col_idx('remaining_P')] < 0:
     if patient[6] < 0:
         patient[6] = "gone"
         return True
@@ -202,15 +202,13 @@ if __name__ == '__main__':
     corona_len = len(corona_table)
     normal_len = len(normal_table)
 
-    # counter for exhasted patients
-    gone_counter = 0
 
     np_corona_table = corona_table.to_numpy()
     np_normal_table = normal_table.to_numpy()
-    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining P']]
-    corona_set_idx = [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining P']]
-    normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining P']]
-    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining P']]
+    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining_P']]
+    corona_set_idx = [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining_P']]
+    normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv end', 'remaining_P']]
+    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining_P']]
 
     del corona_table
     del normal_table
@@ -263,25 +261,56 @@ if __name__ == '__main__':
     normal_table = pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
     complete_table = normal_table.append(corona_table, ignore_index=True)
 
-    #getting statistics
-    #todo eliminate gone patients
+
+
     #mean_corona_plus_insystem_time = (corona_table['visit end'].sum() - corona_table[corona_table['visit end'].isna()]['arrival t'].sum())/len(corona_table['visit end'])
     #mean_corona_minus_insystem_time = (normal_table['visit end'].sum() - normal_table['arrival t'].sum())/len(normal_table['arrival t'])
     print(len(corona_table[corona_table['visit end'].isna()]['arrival t']))
-    #mean_corona_plus_inqueue_time = (corona_table['init patience'].sum() - corona_table['remaining P'].sum())/len(corona_table['remaining P'])
-    #mean_corona_minus_inqueue_time = (normal_table['init patience'].sum() - normal_table['remaining P'].sum())/len(normal_table['remaining P'])
+    #mean_corona_plus_inqueue_time = (corona_table['init_patience'].sum() - corona_table['remaining_P'].sum())/len(corona_table['remaining_P'])
+    #mean_corona_minus_inqueue_time = (normal_table['init_patience'].sum() - normal_table['remaining_P'].sum())/len(normal_table['remaining_P'])
 
     del normal_table, corona_table
-    complete_table = complete_table.sort_values(by=['arrival t'])
+    complete_table = complete_table.sort_values(by=['arrival t'], ignore_index=True)
 
-    # getting final statistics
+    # getting statistics
+
+    statistics_columns = ['in_system_time', 'in_queue_time']
+    stats = pd.DataFrame(index=list(range(0, Conf.CLIENT_NO)), columns=statistics_columns)
+    stats.loc[:, 'in_system_time'] = 0
+    stats.loc[:, 'in_queue_time'] = 0
+    #stats.loc[1, 'arrival t'] = 4
+    #print(stats)
+    gone_counter = 0
+
+
+    not_gone_table = complete_table[complete_table.remaining_P != 'gone']
+    gone_table = complete_table[complete_table.remaining_P == 'gone']
+
+    # in system time
+    #stats['in_system_time'] =
+
+
+
+
+
+    # for index, patient in complete_table.iterrows():
+    #     # in system time calculation
+    #     if patient['remaining_P'] is not 'gone':
+    #         stats.loc[index, 'in_system_time'] = patient['visit end'] - patient['arrival t']
+    #     else:
+    #         gone_counter += 1
+    #         stats.loc[index, 'in_system_time'] = patient['init_patience']
+    #
+    #     # in queue time calculation
+    #     stats.loc[index, 'in_queue_time'] = patient['init_patience'] - patient['remaining_P']
 
     # calc mean in-system time
     #mean_insystem_time = (complete_table['visit end'].sum() - complete_table['arrival t'].sum())/len(complete_table['arrival t'])
-    #mean_inqueue_time = (complete_table['init patience'].sum() - complete_table['remaining P'].sum())/len(complete_table['remaining P'])
+    #mean_inqueue_time = (complete_table['init_patience'].sum() - complete_table['remaining_P'].sum())/len(complete_table['remaining_P'])
 
-    # todo gone_counter =
 
-    print(complete_table)
-    #print(mean_corona_plus_insystem_time)
+
+    #print(type(complete_table.loc[2, 'remaining_P']))
+    #print(type(complete_table.loc[2, 'init_patience']))
+    #print(complete_table)
 
