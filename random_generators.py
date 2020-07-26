@@ -20,4 +20,4 @@ def queue_time():
 
 
 def corona():
-    return np.random.choice([True, False], size=Conf.CLIENT_NO, p=[0.1, 0.9])
+    return np.random.choice([True, False], size=Conf.CLIENT_NO, p=[0.5, 0.5])

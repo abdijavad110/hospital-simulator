@@ -21,7 +21,7 @@ def raw_table():
     patience = rgs.queue_time()
     table.loc[:, 'remaining_P'] = patience
     table.loc[:, 'init_patience'] = patience
-    table.loc[:, 'corona +'] = rgs.corona()
+    table.loc[:, 'corona'] = rgs.corona()
     table.loc[:, 'srv t'] = rgs.service_time()
     btw_arrival[0] = 0
     table.loc[:, 't btw arrival'] = btw_arrival
@@ -187,8 +187,8 @@ if __name__ == '__main__':
     # initialization
     init_pd()
     raw_table = raw_table()
-    corona_table = raw_table.loc[raw_table['corona +']].reset_index(drop=True)
-    normal_table = raw_table.loc[~ raw_table['corona +']].reset_index(drop=True)
+    corona_table = raw_table.loc[raw_table['corona']].reset_index(drop=True)
+    normal_table = raw_table.loc[~ raw_table['corona']].reset_index(drop=True)
     visiting_patients = [[None] * len(Conf.DOCTORS[i]) for i in range(len(Conf.DOCTORS))]
     visit_queues = [[deque(), deque()] for i in range(len(Conf.DOCTORS))]
     room_queues_length = [0 for i in range(len(Conf.DOCTORS))]
@@ -299,12 +299,38 @@ if __name__ == '__main__':
 
     not_gone_table = complete_table[complete_table.remaining_P != 'gone']
     gone_table = complete_table[complete_table.remaining_P == 'gone']
+    #print(not_gone_table)
 
     # in system time
-    #stats['in_system_time'] =
+    mean_corona_insystem_time = gone_table[gone_table.corona == True]['init_patience'].mean()+\
+                                (not_gone_table[not_gone_table.corona == True]['visit end'].mean() -
+                                   not_gone_table[not_gone_table.corona == True]['arrival t'].mean())
+
+    mean_normal_insystem_time = gone_table[gone_table.corona != True]['init_patience'].mean() \
+                                + (not_gone_table[not_gone_table.corona != True]['visit end'].mean() -
+                                   not_gone_table[not_gone_table.corona != True]['arrival t'].mean())
+
+    mean_corona_inqueue_time = gone_table[gone_table.corona == True]['init_patience'].mean() + \
+                               (not_gone_table[not_gone_table.corona == True]['init_patience'].mean() -
+                                not_gone_table[not_gone_table.corona == True]['remaining_P'].mean())
+
+    #
+    mean_normal_inqueue_time = gone_table[gone_table.corona != True]['init_patience'].mean() + \
+                               (not_gone_table[not_gone_table.corona != True]['init_patience'].mean() -
+                                not_gone_table[not_gone_table.corona != True]['remaining_P'].mean())
+
+    print(mean_corona_insystem_time)
+    print(mean_normal_insystem_time)
+    print(mean_corona_inqueue_time)
+    print(mean_normal_inqueue_time)
+
+    print(len(gone_table))
+    #print(complete_table)
+    #print(complete_table[complete_table.corona != True]['remaining_P'])
 
 
-
+    #print(gone_table[gone_table.corona == True]['init_patience'])
+    #print((not_gone_table[not_gone_table.corona == True]['visit end'].mean() - not_gone_table[not_gone_table.corona == True]['arrival t'].mean()))
 
 
     # for index, patient in complete_table.iterrows():
