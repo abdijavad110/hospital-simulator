@@ -215,6 +215,8 @@ if __name__ == '__main__':
 
     corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
+    queue_arr = np.array([])
+    _srv_beg_cache = np.array([])
     for i in range(100):
         print("#" * i + "-" * (99 - i), end="\r")
         for j in range(j_max):
@@ -223,6 +225,7 @@ if __name__ == '__main__':
                     corona_arrival <= now or corona_arrival <= normal_arrival or normal_idx == normal_len):
                 p_index = corona_idx
                 p_has_corona = True
+                arrival_t = corona_arrival
                 begin = now if corona_arrival < now else corona_arrival
                 c_Q_t -= (begin - corona_arrival)
                 if c_Q_t >= 0:
@@ -237,6 +240,7 @@ if __name__ == '__main__':
                     corona_arrival, corona_srv_t, c_Q_t = np_corona_table[corona_idx, corona_as_t_idx]
             else:
                 p_index = normal_idx
+                arrival_t = normal_arrival
                 p_has_corona = False
                 begin = now if normal_arrival < now else normal_arrival
                 n_Q_t -= (begin - normal_arrival)
@@ -249,6 +253,16 @@ if __name__ == '__main__':
                 normal_idx += 1
                 if normal_idx != normal_len:
                     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
+
+            ix = 0
+            _srv_beg_cache = np.append(_srv_beg_cache, begin)
+            for e in _srv_beg_cache:
+                if e > arrival_t:
+                    break
+                else:
+                    ix += 1
+            _srv_beg_cache = _srv_beg_cache[ix:]
+            queue_arr = np.append(queue_arr, _srv_beg_cache.shape[0])
 
             if gone is False:
                 add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues, room_queues_length,
