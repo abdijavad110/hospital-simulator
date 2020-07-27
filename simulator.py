@@ -17,16 +17,16 @@ def init_pd():
 def raw_table():
     table = pd.DataFrame(index=list(range(1, Conf.CLIENT_NO + 1)), columns=Conf.TABLE_COLUMNS)
     table.loc[:, 'srv beg'] = 0
-    table.loc[1, 'arrival t'] = 0
+    table.loc[1, 'arrival_t'] = 0
     btw_arrival = rgs.btw_arrival()
     patience = rgs.queue_time()
     table.loc[:, 'remaining_P'] = patience
     table.loc[:, 'init_patience'] = patience
     table.loc[:, 'corona'] = rgs.corona()
-    table.loc[:, 'srv t'] = rgs.service_time()
+    table.loc[:, 'srv_t'] = rgs.service_time()
     btw_arrival[0] = 0
     table.loc[:, 't btw arrival'] = btw_arrival
-    table.loc[:, 'arrival t'] = np.cumsum(btw_arrival)
+    table.loc[:, 'arrival_t'] = np.cumsum(btw_arrival)
     return table
 
 
@@ -82,7 +82,7 @@ def flush_patients(visit_queues, room_queues_length,
             for doc_idx in range(len(Conf.DOCTORS[room_idx])):
                 last_visit_end = -1e20
                 if visiting_patients[room_idx][doc_idx] is not None:
-                    # last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit end")]
+                    # last_visit_end = visiting_patients[room_idx][doc_idx][get_col_idx("visit_end")]
                     last_visit_end = visiting_patients[room_idx][doc_idx][9]
                 if arrive_time:
                     if last_visit_end <= arrive_time:
@@ -149,12 +149,12 @@ def flush_patients(visit_queues, room_queues_length,
             else:
                 visit_start = visiting_srv_end
 
-            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit beg')] = visit_start
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit_beg')] = visit_start
             # visiting_patients[room_idx][min_doctor_idx][get_col_idx('room')] = room_idx
             # visiting_patients[room_idx][min_doctor_idx][get_col_idx('doctor')] = min_doctor_idx
             # visit_time = rgs.visit_time(Conf.DOCTORS[room_idx][min_doctor_idx])
-            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit t')] = visit_time
-            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit end')] = visit_start + visit_time
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit_t')] = visit_time
+            # visiting_patients[room_idx][min_doctor_idx][get_col_idx('visit_end')] = visit_start + visit_time
             visiting_patients[room_idx][min_doctor_idx][7] = visit_start
             visiting_patients[room_idx][min_doctor_idx][10] = room_idx
             visiting_patients[room_idx][min_doctor_idx][11] = min_doctor_idx
@@ -185,28 +185,29 @@ def add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, v
 
 
 def number_of_doctors(doctors):
+
     num_docs = 0
     for m in doctors: num_docs += len(m)
     return num_docs
 
 
-if __name__ == '__main__':
+def run():
     # initialization
     init_pd()
-    raw_table = raw_table()
-    corona_table = raw_table.loc[raw_table['corona']].reset_index(drop=True)
-    normal_table = raw_table.loc[~ raw_table['corona']].reset_index(drop=True)
+    raw = raw_table()
+    corona_table = raw.loc[raw['corona']].reset_index(drop=True)
+    normal_table = raw.loc[~ raw['corona']].reset_index(drop=True)
     visiting_patients = [[None] * len(Conf.DOCTORS[i]) for i in range(len(Conf.DOCTORS))]
     visit_queues = [[deque(), deque()] for i in range(len(Conf.DOCTORS))]
     room_queues_length = [0 for i in range(len(Conf.DOCTORS))]
 
     # stats arrays
-    rooms_length_over_time = [[0 for x in range(len(Conf.DOCTORS))] for y in range(Conf.CLIENT_NO)]
+    rooms_length_over_time = np.array([[0 for x in range(Conf.CLIENT_NO)] for y in range(len(Conf.DOCTORS))])
     # response_time = [0 for i in range(len(Conf.CLIENT_NO))]
     # 0: normal,  1: corona plus
     patient_type_over_time = [[0 for x in range(2)] for y in range(Conf.CLIENT_NO)]
 
-    del raw_table
+    del raw
     j_max = Conf.CLIENT_NO // 100
 
     now = 0
@@ -217,10 +218,10 @@ if __name__ == '__main__':
 
     np_corona_table = corona_table.to_numpy()
     np_normal_table = normal_table.to_numpy()
-    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining_P']]
+    corona_as_t_idx = [corona_table.columns.get_loc(c) for c in ['arrival_t', 'srv_t', 'remaining_P']]
     corona_set_idx = [corona_table.columns.get_loc(c) for c in ['srv beg', 'srv_end', 'remaining_P']]
     normal_set_idx = [normal_table.columns.get_loc(c) for c in ['srv beg', 'srv_end', 'remaining_P']]
-    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival t', 'srv t', 'remaining_P']]
+    normal_as_t_idx = [normal_table.columns.get_loc(c) for c in ['arrival_t', 'srv_t', 'remaining_P']]
 
     del corona_table
     del normal_table
@@ -282,7 +283,9 @@ if __name__ == '__main__':
             # saving room queue length for stats
             if patient_index != 0:
                 for k in range(len(room_queues_length)):
-                    rooms_length_over_time[patient_index][k] = room_queues_length[k]
+                    rooms_length_over_time[k][patient_index] = room_queues_length[k]
+                    if k == 0:
+                        rooms_length_over_time[k][patient_index] -= 1
 
             if gone is False:
                 add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues,
@@ -297,63 +300,41 @@ if __name__ == '__main__':
     normal_table = pd.DataFrame(np_normal_table, columns=Conf.TABLE_COLUMNS)
     complete_table = normal_table.append(corona_table, ignore_index=True)
 
-    # mean_corona_plus_insystem_time = (corona_table['visit end'].sum() - corona_table[corona_table['visit end'].isna()]['arrival t'].sum())/len(corona_table['visit end'])
-    # mean_corona_minus_insystem_time = (normal_table['visit end'].sum() - normal_table['arrival t'].sum())/len(normal_table['arrival t'])
-    # print(len(corona_table[corona_table['visit end'].isna()]['arrival t']))
-    # mean_corona_plus_inqueue_time = (corona_table['init_patience'].sum() - corona_table['remaining_P'].sum())/len(corona_table['remaining_P'])
-    # mean_corona_minus_inqueue_time = (normal_table['init_patience'].sum() - normal_table['remaining_P'].sum())/len(normal_table['remaining_P'])
-
     del normal_table, corona_table
-    complete_table = complete_table.sort_values(by=['arrival t'], ignore_index=True)
+    complete_table = complete_table.sort_values(by=['arrival_t'], ignore_index=True)
     complete_table['queue_length'] = queue_arr
 
     # getting statistics
-
-    # emtiazi 5
-    labels = range(len(complete_table))
-    srv_queue_len = queue_arr
-    fig, ax = plt.subplots()
-    ax.plot(labels, srv_queue_len)
-    ax.set(xlabel='time', ylabel='service queue length', title='service queue length plot')
-    fig.savefig("plots/Qlen.png")
-
-    statistics_columns = ['in_system_time', 'in_queue_time']
-    stats = pd.DataFrame(index=list(range(0, Conf.CLIENT_NO)), columns=statistics_columns)
-    stats.loc[:, 'in_system_time'] = 0
-    stats.loc[:, 'in_queue_time'] = 0
-    # stats.loc[1, 'arrival t'] = 4
-    # print(stats)
-    gone_counter = 0
 
     not_gone_table = complete_table[complete_table.remaining_P != 'gone']
     gone_table = complete_table[complete_table.remaining_P == 'gone']
     # print(not_gone_table)
 
-    # in system time
+    # 1,2- in system time and in queue time
     mean_corona_insystem_time = (gone_table[gone_table.corona == True]['init_patience'].sum() +
-                                 not_gone_table[not_gone_table.corona == True]['visit end'].sum() -
-                                 not_gone_table[not_gone_table.corona == True]['arrival t'].sum() +
+                                 not_gone_table[not_gone_table.corona == True]['visit_end'].sum() -
+                                 not_gone_table[not_gone_table.corona == True]['arrival_t'].sum() +
                                  gone_table[gone_table.srv_end != 'gone'][gone_table.corona == True][
-                                     'srv t'].sum()) / (len(complete_table[complete_table.corona == True]))
+                                     'srv_t'].sum()) / (len(complete_table[complete_table.corona == True]))
 
     mean_normal_insystem_time = (gone_table[gone_table.corona != True]['init_patience'].sum()
-                                 + not_gone_table[not_gone_table.corona != True]['visit end'].sum() -
-                                 not_gone_table[not_gone_table.corona != True]['arrival t'].sum() +
+                                 + not_gone_table[not_gone_table.corona != True]['visit_end'].sum() -
+                                 not_gone_table[not_gone_table.corona != True]['arrival_t'].sum() +
                                  (gone_table[gone_table.srv_end != 'gone'][gone_table.corona != True][
-                                      'srv t'].sum())) / (len(complete_table[complete_table.corona != True]))
+                                      'srv_t'].sum())) / (len(complete_table[complete_table.corona != True]))
 
     mean_corona_inqueue_time = (gone_table[gone_table.corona == True]['init_patience'].sum() +
-                                not_gone_table[not_gone_table.corona == True]['visit end'].sum() -
-                                not_gone_table[not_gone_table.corona == True]['arrival t'].sum() -
-                                not_gone_table[not_gone_table.corona == True]['srv t'].sum() -
-                                not_gone_table[not_gone_table.corona == True]['visit t'].sum()) / (
+                                not_gone_table[not_gone_table.corona == True]['visit_end'].sum() -
+                                not_gone_table[not_gone_table.corona == True]['arrival_t'].sum() -
+                                not_gone_table[not_gone_table.corona == True]['srv_t'].sum() -
+                                not_gone_table[not_gone_table.corona == True]['visit_t'].sum()) / (
                                    len(complete_table[complete_table.corona == True]))
 
     mean_normal_inqueue_time = (gone_table[gone_table.corona != True]['init_patience'].sum() +
-                                not_gone_table[not_gone_table.corona != True]['visit end'].sum() -
-                                not_gone_table[not_gone_table.corona != True]['arrival t'].sum() -
-                                not_gone_table[not_gone_table.corona != True]['srv t'].sum() -
-                                not_gone_table[not_gone_table.corona != True]['visit t'].sum()) / (
+                                not_gone_table[not_gone_table.corona != True]['visit_end'].sum() -
+                                not_gone_table[not_gone_table.corona != True]['arrival_t'].sum() -
+                                not_gone_table[not_gone_table.corona != True]['srv_t'].sum() -
+                                not_gone_table[not_gone_table.corona != True]['visit_t'].sum()) / (
                                    len(complete_table[complete_table.corona != True]))
 
     overal_insystem_time = (len(complete_table[complete_table.corona == True]) * mean_corona_insystem_time + \
@@ -364,37 +345,113 @@ if __name__ == '__main__':
                            len(complete_table[complete_table.corona != True]) * mean_normal_inqueue_time) / \
                           (len(complete_table))
 
-    print(mean_corona_insystem_time)
+    print('*********************************************** statistics ***********************************************')
+    print('========================== mean in_system time ============================')
+    print("mean_normal_insystem_time:", end=' ')
     print(mean_normal_insystem_time)
-    print(mean_corona_inqueue_time)
+    print("mean_corona_insystem_time:", end=' ')
+    print(mean_corona_insystem_time)
+    print("overal_insystem_time:", end=' ')
+    print(overal_insystem_time)
+
+    print('========================== mean in_queue time ============================')
+    print("mean_normal_inqueue_time:", end=' ')
     print(mean_normal_inqueue_time)
+    print("mean_corona_inqueue_time:", end=' ')
+    print(mean_corona_inqueue_time)
+    print("overal_inqueue_time:", end=' ')
+    print(overal_inqueue_time)
 
-    # number of gone people
+    print('========================== 3 ============================')
+    # 3-number of gone people
     gone_count = len(gone_table)
+    print('number of gone patients during simulation:', end=' ')
+    print(gone_count)
 
-    print(rooms_length_over_time)
+    print('========================== mean visit and rooms queue length ============================')
+    # 4- mean service and visit queue length
+    mean_service_queue_length = complete_table['queue_length'].mean()
+    print('mean_service_queue_length:', end=' ')
+    print(mean_service_queue_length)
 
-    print(complete_table)
-    # print(complete_table[complete_table.corona != True]['remaining_P'])
+    mean_visit_queue_length = [0 for x in range(len(Conf.DOCTORS))]
 
-    # print(gone_table[gone_table.corona == True]['init_patience'])
-    # print((not_gone_table[not_gone_table.corona == True]['visit end'].mean() - not_gone_table[not_gone_table.corona == True]['arrival t'].mean()))
+    print('mean_rooms_queue_length:')
+    for i in range(len(Conf.DOCTORS)):
+        print('room number {}'.format(i), end=' ')
+        mean_visit_queue_length[i] = rooms_length_over_time[i][:].mean()
+        print(mean_visit_queue_length[i])
 
-    # for index, patient in complete_table.iterrows():
-    #     # in system time calculation
-    #     if patient['remaining_P'] is not 'gone':
-    #         stats.loc[index, 'in_system_time'] = patient['visit end'] - patient['arrival t']
-    #     else:
-    #         gone_counter += 1
-    #         stats.loc[index, 'in_system_time'] = patient['init_patience']
-    #
-    #     # in queue time calculation
-    #     stats.loc[index, 'in_queue_time'] = patient['init_patience'] - patient['remaining_P']
+    # emtiazi 1
+    normal_response_table = complete_table[complete_table.corona == False][['srv_t', 'visit_t']]
+    normal_response_table['response_time'] = normal_response_table['srv_t'] + normal_response_table['visit_t']
+    normal_response_table['response_time'] = normal_response_table['response_time'].fillna(0)
 
-    # calc mean in-system time
-    # mean_insystem_time = (complete_table['visit end'].sum() - complete_table['arrival t'].sum())/len(complete_table['arrival t'])
-    # mean_inqueue_time = (complete_table['init_patience'].sum() - complete_table['remaining_P'].sum())/len(complete_table['remaining_P'])
+    # print(normal_response_table)
+    labels = range(len(normal_response_table))
+    fig, ax = plt.subplots()
+    ax.plot(labels, normal_response_table['response_time'])
+    fig.savefig("plots/normal_response_plot.png")
 
-    # print(type(complete_table.loc[2, 'remaining_P']))
-    # print(type(complete_table.loc[2, 'init_patience']))
-    # print(queue_arr)
+    corona_response_table = complete_table[complete_table.corona == True][['srv_t', 'visit_t']]
+    corona_response_table['response_time'] = corona_response_table['srv_t'] + corona_response_table['visit_t']
+    corona_response_table['response_time'] = corona_response_table['response_time'].fillna(0)
+
+    # print(len(normal_response_table))
+    labels = range(len(corona_response_table))
+    fig, ax = plt.subplots()
+    ax.plot(labels, corona_response_table['response_time'])
+    fig.savefig("plots/corona_response_plot.png")
+
+    # emtiazi 2
+    gone_table['waiting_time'] = gone_table['init_patience']
+    not_gone_table['waiting_time'] = not_gone_table['visit_end'] - not_gone_table['srv_t'] - \
+                                     not_gone_table['visit_t'] - not_gone_table['arrival_t']
+
+    overal_waiting = gone_table.append(not_gone_table, ignore_index=True)
+    overal_waiting = overal_waiting.sort_values(by=['arrival_t'], ignore_index=True)
+
+    corona_waiting = overal_waiting[overal_waiting.corona == True]['waiting_time']
+    normal_waiting = overal_waiting[overal_waiting.corona == False]['waiting_time']
+    # print(overal_waiting)
+
+    labels = range(len(corona_waiting))
+    fig, ax = plt.subplots()
+    ax.plot(labels, corona_waiting)
+    ax.set(xlabel='time', ylabel='corona+ patients waiting time', title='corona+ patients waiting frequency')
+    fig.savefig("plots/corona_waiting_freq.png")
+
+    labels = range(len(normal_waiting))
+    fig, ax = plt.subplots()
+    ax.plot(labels, normal_waiting)
+    ax.set(xlabel='time', ylabel='normal patients waiting time', title='normal patients waiting frequency')
+    fig.savefig("plots/normal_waiting_freq.png")
+
+    # emtiazi 3,4 todo
+
+    # emtiazi 5
+    normal_queue_length = complete_table[complete_table.corona == False]['queue_length']
+    labels = range(len(normal_queue_length))
+    fig, ax = plt.subplots()
+    ax.plot(labels, normal_queue_length)
+    ax.set(xlabel='time', ylabel='normal queue length', title='normal queue length plot')
+    fig.savefig("plots/normal_queue_length.png")
+
+    corona_queue_length = complete_table[complete_table.corona == True]['queue_length']
+    labels = range(len(corona_queue_length))
+    fig, ax = plt.subplots()
+    ax.plot(labels, corona_queue_length)
+    ax.set(xlabel='time', ylabel='corona queue length', title='corona queue length plot')
+    fig.savefig("plots/corona_queue_length.png")
+
+    overal_queue_length = complete_table['queue_length']
+    labels = range(len(overal_queue_length))
+    fig, ax = plt.subplots()
+    ax.plot(labels, overal_queue_length)
+    ax.set(xlabel='time', ylabel='overal queue length', title='overal queue length plot')
+    fig.savefig("plots/overal_queue_length.png")
+
+
+
+if __name__ == '__main__':
+    run()
