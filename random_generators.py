@@ -11,8 +11,8 @@ def service_time():
     return np.random.exponential(scale=1/Conf.MU, size=Conf.CLIENT_NO)
 
 
-def visit_time(mean_visit_time):
-    return np.random.exponential(scale=mean_visit_time, size=1)[0]    # fixme Number of random numbers that should be returned
+def visit_time(visit_lambda):
+    return np.random.exponential(scale=1/visit_lambda, size=1)[0]    # fixme Number of random numbers that should be returned
 
 
 def queue_time():
@@ -20,4 +20,4 @@ def queue_time():
 
 
 def corona():
-    return np.random.choice([True, False], size=Conf.CLIENT_NO, p=[0.5, 0.5])
+    return np.random.choice([True, False], size=Conf.CLIENT_NO, p=[0.4, 0.6])
