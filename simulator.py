@@ -1,12 +1,14 @@
-from collections import deque
-
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
 import math
-from conf import Conf
-import random_generators as rgs
+import warnings
+import numpy as np
+import pandas as pd
+from collections import deque
+import matplotlib.pyplot as plt
 
+import random_generators as rgs
+from conf import Conf, init_conf
+
+warnings.simplefilter(action='ignore', category=Warning)
 
 def init_pd():
     pd.set_option('precision', 3)
@@ -454,4 +456,5 @@ def run():
 
 
 if __name__ == '__main__':
+    init_conf()
     run()

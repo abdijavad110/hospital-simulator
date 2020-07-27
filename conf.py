@@ -26,15 +26,14 @@ def init_conf(conf_file=None):
         parser.add_argument('--config', '-c', help="path to config file")
         conf_file = parser.parse_args().config
 
-
     conf_str = open(conf_file).read() if conf_file else get_conf_terminal()
-    return parse_conf(conf_str)
+    Conf.M, Conf.LAMBDA, Conf.ALPHA, Conf.MU, Conf.DOCTORS = parse_conf(conf_str)
+    Conf.M = int(Conf.M)
 
 
 class Conf:
-    CLIENT_NO = 1000
+    CLIENT_NO = 100000
     TABLE_COLUMNS = ["t btw arrival", "arrival_t", "corona", "srv beg", "srv_t", "srv_end", "remaining_P", "visit_beg",
                      "visit_t", "visit_end", "room", "doctor", "init_patience"]
 
-    M, LAMBDA, ALPHA, MU, DOCTORS = init_conf()
-    M = int(M)
+    M, LAMBDA, ALPHA, MU, DOCTORS = None, None, None, None, None
