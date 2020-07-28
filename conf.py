@@ -32,7 +32,7 @@ def init_conf(conf_file=None):
 
 
 class Conf:
-    CLIENT_NO = 100000
+    CLIENT_NO = 10000000
     TABLE_COLUMNS = ["t btw arrival", "arrival_t", "corona", "srv beg", "srv_t", "srv_end", "remaining_P", "visit_beg",
                      "visit_t", "visit_end", "room", "doctor", "init_patience"]
 

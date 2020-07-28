@@ -10,6 +10,7 @@ from conf import Conf, init_conf
 
 warnings.simplefilter(action='ignore', category=Warning)
 
+
 def init_pd():
     pd.set_option('precision', 3)
     pd.set_option('max_columns', 20)
@@ -194,6 +195,7 @@ def number_of_doctors(doctors):
 
 
 def run():
+
     # initialization
     init_pd()
     raw = raw_table()
@@ -206,8 +208,14 @@ def run():
     # stats arrays
     rooms_length_over_time = np.array([[0 for x in range(Conf.CLIENT_NO)] for y in range(len(Conf.DOCTORS))])
     # response_time = [0 for i in range(len(Conf.CLIENT_NO))]
+
     # 0: normal,  1: corona plus
-    patient_type_over_time = [[0 for x in range(2)] for y in range(Conf.CLIENT_NO)]
+    patient_type_over_time = [[0 for x in range(Conf.CLIENT_NO)] for y in range(2)]
+
+
+
+    insystem_realtime = [[0 for x in range(Conf.CLIENT_NO)] for y in range(2)]
+
 
     del raw
     j_max = Conf.CLIENT_NO // 100
@@ -272,6 +280,8 @@ def run():
                 if normal_idx != normal_len:
                     normal_arrival, normal_srv_t, n_Q_t = np_normal_table[normal_idx, normal_as_t_idx]
 
+            patient_type_over_time[0][patient_index] = normal_idx
+            patient_type_over_time[1][patient_index] = corona_idx
             ix = 0
             _srv_beg_cache = np.append(_srv_beg_cache, begin)
             for e in _srv_beg_cache:
@@ -288,11 +298,16 @@ def run():
                     rooms_length_over_time[k][patient_index] = room_queues_length[k]
                     if k == 0:
                         rooms_length_over_time[k][patient_index] -= 1
-
+            tmp_sum = 0
+            for y in range(len(Conf.DOCTORS)):
+                tmp_sum += rooms_length_over_time[y][patient_index]
+            insystem_realtime[1][patient_index] = (tmp_sum + queue_arr[patient_index])//9
+            insystem_realtime[0][patient_index] = tmp_sum + queue_arr[patient_index] - insystem_realtime[1][patient_index]
             if gone is False:
                 add_to_room_queue(np_normal_table, np_corona_table, p_index, p_has_corona, visit_queues,
                                   room_queues_length,
                                   now, visiting_patients)
+
 
     print()
     flush_patients(visit_queues, room_queues_length,
@@ -306,11 +321,10 @@ def run():
     complete_table = complete_table.sort_values(by=['arrival_t'], ignore_index=True)
     complete_table['queue_length'] = queue_arr
 
-    # getting statistics
+    # =========================================== getting statistics ============================================
 
     not_gone_table = complete_table[complete_table.remaining_P != 'gone']
     gone_table = complete_table[complete_table.remaining_P == 'gone']
-    # print(not_gone_table)
 
     # 1,2- in system time and in queue time
     mean_corona_insystem_time = (gone_table[gone_table.corona == True]['init_patience'].sum() +
@@ -350,19 +364,19 @@ def run():
     print('*********************************************** statistics ***********************************************')
     print('========================== mean in_system time ============================')
     print("mean_normal_insystem_time:", end=' ')
-    print(mean_normal_insystem_time)
+    print("%.3f"%mean_normal_insystem_time)
     print("mean_corona_insystem_time:", end=' ')
-    print(mean_corona_insystem_time)
+    print("%.3f"% mean_corona_insystem_time)
     print("overal_insystem_time:", end=' ')
-    print(overal_insystem_time)
+    print("%.3f"%overal_insystem_time)
 
     print('========================== mean in_queue time ============================')
     print("mean_normal_inqueue_time:", end=' ')
-    print(mean_normal_inqueue_time)
+    print("%.3f"%mean_normal_inqueue_time)
     print("mean_corona_inqueue_time:", end=' ')
-    print(mean_corona_inqueue_time)
+    print("%.3f"%mean_corona_inqueue_time)
     print("overal_inqueue_time:", end=' ')
-    print(overal_inqueue_time)
+    print("%.3f"%overal_inqueue_time)
 
     print('========================== 3 ============================')
     # 3-number of gone people
@@ -370,40 +384,56 @@ def run():
     print('number of gone patients during simulation:', end=' ')
     print(gone_count)
 
+
     print('========================== mean visit and rooms queue length ============================')
     # 4- mean service and visit queue length
     mean_service_queue_length = complete_table['queue_length'].mean()
     print('mean_service_queue_length:', end=' ')
-    print(mean_service_queue_length)
+    print("%.3f"%mean_service_queue_length)
 
     mean_visit_queue_length = [0 for x in range(len(Conf.DOCTORS))]
 
     print('mean_rooms_queue_length:')
     for i in range(len(Conf.DOCTORS)):
-        print('room number {}'.format(i), end=' ')
+        print('room number {}:'.format(i), end=' ')
         mean_visit_queue_length[i] = rooms_length_over_time[i][:].mean()
-        print(mean_visit_queue_length[i])
+        print("%.3f"%mean_visit_queue_length[i])
+
+
+    # # 5- accuracy
+    print("===== accuracy =======")
+    acur = complete_table['srv_t'].values
+
+    acc_return_val = 1.96*acur.std()/(np.sqrt(Conf.CLIENT_NO)*acur.mean())
+    print("accuracy with {} number of patients".format(Conf.CLIENT_NO))
+    print("%.4f"%(1 - acc_return_val))
+
+    #print(rooms_length_over_time)
 
     # emtiazi 1
-    normal_response_table = complete_table[complete_table.corona == False][['srv_t', 'visit_t']]
+    normal_response_table = complete_table[complete_table.corona == False][['srv_t', 'visit_t', 'arrival_t']]
     normal_response_table['response_time'] = normal_response_table['srv_t'] + normal_response_table['visit_t']
     normal_response_table['response_time'] = normal_response_table['response_time'].fillna(0)
 
     # print(normal_response_table)
-    labels = range(len(normal_response_table))
+    labels = normal_response_table['arrival_t']
     fig, ax = plt.subplots()
     ax.plot(labels, normal_response_table['response_time'])
+    ax.set(xlabel='time', ylabel='normal patients response freq', title='normal patients response frequency')
     fig.savefig("plots/normal_response_plot.png")
 
-    corona_response_table = complete_table[complete_table.corona == True][['srv_t', 'visit_t']]
+    corona_response_table = complete_table[complete_table.corona == True][['srv_t', 'visit_t', 'arrival_t']]
     corona_response_table['response_time'] = corona_response_table['srv_t'] + corona_response_table['visit_t']
     corona_response_table['response_time'] = corona_response_table['response_time'].fillna(0)
 
     # print(len(normal_response_table))
-    labels = range(len(corona_response_table))
+    labels = corona_response_table['arrival_t']
     fig, ax = plt.subplots()
     ax.plot(labels, corona_response_table['response_time'])
+    ax.set(xlabel='time', ylabel='corona+ patients response freq', title='corona+ patients response frequency')
     fig.savefig("plots/corona_response_plot.png")
+
+    del normal_response_table, corona_response_table
 
     # emtiazi 2
     gone_table['waiting_time'] = gone_table['init_patience']
@@ -413,46 +443,91 @@ def run():
     overal_waiting = gone_table.append(not_gone_table, ignore_index=True)
     overal_waiting = overal_waiting.sort_values(by=['arrival_t'], ignore_index=True)
 
-    corona_waiting = overal_waiting[overal_waiting.corona == True]['waiting_time']
-    normal_waiting = overal_waiting[overal_waiting.corona == False]['waiting_time']
+    corona_waiting = overal_waiting[overal_waiting.corona == True][['waiting_time', 'arrival_t']]
+    normal_waiting = overal_waiting[overal_waiting.corona == False][['waiting_time', 'arrival_t']]
     # print(overal_waiting)
 
-    labels = range(len(corona_waiting))
+    labels = corona_waiting['arrival_t']
     fig, ax = plt.subplots()
-    ax.plot(labels, corona_waiting)
+    ax.plot(labels, corona_waiting['waiting_time'])
     ax.set(xlabel='time', ylabel='corona+ patients waiting time', title='corona+ patients waiting frequency')
     fig.savefig("plots/corona_waiting_freq.png")
 
-    labels = range(len(normal_waiting))
+    labels = normal_waiting['arrival_t']
     fig, ax = plt.subplots()
-    ax.plot(labels, normal_waiting)
+    ax.plot(labels, normal_waiting['waiting_time'])
     ax.set(xlabel='time', ylabel='normal patients waiting time', title='normal patients waiting frequency')
     fig.savefig("plots/normal_waiting_freq.png")
 
-    # emtiazi 3,4 todo
+    del corona_waiting, normal_waiting,
+    # emtiazi 3
+
+    labels = complete_table['arrival_t']
+    fig, ax = plt.subplots()
+    ax.plot(labels, insystem_realtime[0])
+    ax.set(xlabel='time', ylabel='normal in patient system freq', title='normal patients in system frequency')
+    fig.savefig("plots/normal_insystem_freq.png")
+
+    labels = complete_table['arrival_t']
+    fig, ax = plt.subplots()
+    ax.plot(labels, insystem_realtime[1])
+    ax.set(xlabel='time', ylabel='corona in patient system freq', title='corona patients in system frequency')
+    fig.savefig("plots/corona_insystem_freq.png")
+
+
+    #print(insystem_realtime[1])
+
+    # emtiazi 4
+    labels = complete_table['arrival_t']
+    fig, ax = plt.subplots()
+    ax.plot(labels, patient_type_over_time[0][:])
+    ax.set(xlabel='time', ylabel='normal patients number in system(accumulated)',
+           title='normal patients number in system(accumulated)')
+    fig.savefig("plots/normal_accumulated_insystem.png")
+
+    labels = complete_table['arrival_t']
+    fig, ax = plt.subplots()
+    ax.plot(labels, patient_type_over_time[1][:])
+    ax.set(xlabel='time', ylabel='corona patients number in system(accumulated)',
+           title='corona patients number in system(accumulated)')
+    fig.savefig("plots/corona_accumulated_insystem.png")
+
+    labels = complete_table['arrival_t']
+    fig, ax = plt.subplots()
+    overal_over_time = [patient_type_over_time[0][i] + patient_type_over_time[1][i] for i in range(len(patient_type_over_time[0]))]
+    ax.plot(labels, overal_over_time)
+    ax.set(xlabel='time', ylabel='overal patients number in system(accumulated)',
+           title='overal patients number in system(accumulated)')
+    fig.savefig("plots/overal_accumulated_insystem.png")
+
+
+    #print(patient_type_over_time[0])
+
 
     # emtiazi 5
-    normal_queue_length = complete_table[complete_table.corona == False]['queue_length']
-    labels = range(len(normal_queue_length))
+    normal_queue_length = complete_table[complete_table.corona == False][['queue_length', 'arrival_t']]
+    labels = normal_queue_length['arrival_t']
     fig, ax = plt.subplots()
-    ax.plot(labels, normal_queue_length)
-    ax.set(xlabel='time', ylabel='normal queue length', title='normal queue length plot')
-    fig.savefig("plots/normal_queue_length.png")
+    ax.plot(labels, normal_queue_length['queue_length'])
+    ax.set(xlabel='time', ylabel='normal service queue length', title='normal service queue length plot')
+    fig.savefig("plots/normal_service_queue_length.png")
 
-    corona_queue_length = complete_table[complete_table.corona == True]['queue_length']
-    labels = range(len(corona_queue_length))
+    corona_queue_length = complete_table[complete_table.corona == True][['queue_length', 'arrival_t']]
+    labels = corona_queue_length['arrival_t']
     fig, ax = plt.subplots()
-    ax.plot(labels, corona_queue_length)
-    ax.set(xlabel='time', ylabel='corona queue length', title='corona queue length plot')
-    fig.savefig("plots/corona_queue_length.png")
+    ax.plot(labels, corona_queue_length['queue_length'])
+    ax.set(xlabel='time', ylabel='corona service queue length', title='corona service queue length plot')
+    fig.savefig("plots/corona_service_queue_length.png")
 
-    overal_queue_length = complete_table['queue_length']
-    labels = range(len(overal_queue_length))
+    overal_queue_length = complete_table[['queue_length', 'arrival_t']]
+    labels = overal_queue_length['arrival_t']
     fig, ax = plt.subplots()
-    ax.plot(labels, overal_queue_length)
-    ax.set(xlabel='time', ylabel='overal queue length', title='overal queue length plot')
-    fig.savefig("plots/overal_queue_length.png")
+    ax.plot(labels, overal_queue_length['queue_length'])
+    ax.set(xlabel='time', ylabel='overal service queue length', title='overal service queue length plot')
+    fig.savefig("plots/overal_service_queue_length.png")
 
+
+    return rooms_length_over_time, acc_return_val
 
 
 if __name__ == '__main__':

@@ -1,0 +1,1 @@
+sufficient number of patients for 95% accuracy: 1550
