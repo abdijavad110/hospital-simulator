@@ -3,13 +3,13 @@ from conf import init_conf
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    # check for 2 rooms that each has 2 doctors
-    visit_rate = [1, 1, 1, 1]
+    # check for 2 rooms with 2 and 3 doctors
+    visit_rate = [1, 1, 1, 1, 1]
     content = None
     plot_array = []
 
     while(True):
-        content = "2, 6, 20, 5\n{}, {}\n{}, {}\n".format(visit_rate[0], visit_rate[1], visit_rate[2], visit_rate[3])
+        content = "2, 6, 20, 5\n{}, {}\n{}, {}, {}\n".format(visit_rate[0], visit_rate[1], visit_rate[2], visit_rate[3], visit_rate[3])
         file = open("conf", "w")
         file.write(content)
         file.close()
